@@ -1,7 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import statsmodels.api as sm  # Import ARIMA from statsmodels
+from statsmodels.tsa.arima.model import ARIMA
 from sklearn.preprocessing import StandardScaler
+from statsmodels.compat.pandas import Appender
 import streamlit as st
 import pickle
 import numpy as np
@@ -9,7 +10,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import nltk
 from nltk.corpus import stopwords
-import os
+from nltk.tokenize import word_tokenize
+import os  # Added for file path handling
 import openai
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
