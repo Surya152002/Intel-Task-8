@@ -1,15 +1,18 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_squared_error
 from keras.models import Sequential
 from keras.layers import Dense, LSTM
 import numpy as np
 import streamlit as st
 import os
-import pickle
+import openai
+import nltk
+from nltk.corpus import stopwords
 
-# Convert series to supervised learning
+# Global setup for OpenAI API key
+openai.api_key = os.environ["OPENAI_API_KEY"]
+
 def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
     n_vars = 1 if type(data) is list else data.shape[1]
     df = pd.DataFrame(data)
@@ -41,44 +44,46 @@ def trading_advice(actual, prediction):
     else:
         return "The price seems stable. You might consider holding."
 
+def chatbot_response(user_input):
+    predefined_responses = [
+        f"The predicted price for the next period is {predictions[-1]:.2f}.",
+        trading_advice(actual_price[-1], predictions[-1]),
+        "I am here to help with your cryptocurrency trading decisions.",
+        "Can you specify your query?"
+    ]
+    return predefined_responses[np.random.randint(0, len(predefined_responses))]
+
 # Streamlit app
 def main():
     st.title("Cryptocurrency Price Prediction and Trading Bot")
 
     csv_path = 'https://github.com/Surya152002/Intel-Task-8/blob/main/crypto_dataset%20(9).csv'
-    
+
     # Read and preprocess the input data
     df = pd.read_csv(csv_path, parse_dates=['Timestamp'], index_col='Timestamp')
-    
     coins = ['BTC-USD Close', 'ETH-USD Close', 'LTC-USD Close']
     coin_choice = st.selectbox("Select a cryptocurrency", coins)
 
+    # LSTM model preparation and prediction
     if coin_choice == "BTC-USD Close":
-        coin_model_path = 'btc-usd_close_model.pkl'
+        coin_model_path = 'btc-usd_close_model.h5'
     elif coin_choice == "ETH-USD Close":
-        coin_model_path = 'eth-usd_close_model.pkl'
+        coin_model_path = 'eth-usd_close_model.h5'
     else:
-        coin_model_path = 'ltc-usd_close_model.pkl'
-    
+        coin_model_path = 'ltc-usd_close_model.h5'
+
     values = df[coin_choice].values.reshape(-1, 1)
-    
-    # Normalize features
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled = scaler.fit_transform(values)
-
-    # Frame as supervised learning
     reframed = series_to_supervised(scaled, 1, 1)
-    
-    # Split into train and test sets
+
     values = reframed.values
     n_train = int(len(values) * 0.8)
     train, test = values[:n_train, :], values[n_train:, :]
 
-    # Split into input and output
     train_X, train_y = train[:, :-1], train[:, -1]
     test_X, test_y = test[:, :-1], test[:, -1]
 
-    # Reshape for LSTM [samples, timesteps, features]
     train_X = train_X.reshape((train_X.shape[0], 1, train_X.shape[1]))
     test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
 
@@ -88,31 +93,37 @@ def main():
     model.add(Dense(1))
     model.compile(loss='mae', optimizer='adam')
 
-    # Check if model exists, if not, train it
     if not os.path.exists(coin_model_path):
-        # Fit the model
         model.fit(train_X, train_y, epochs=50, batch_size=72, verbose=0, shuffle=False)
-
-        # Save model
         model.save(coin_model_path)
     else:
-        # Load the model
-        model = keras.models.load_model(coin_model_path)
-    
-    # Predict on the entire data
+        model.load_weights(coin_model_path)
+
     yhat = model.predict(test_X)
     test_X = test_X.reshape((test_X.shape[0], test_X.shape[2]))
 
-    # Invert scaling
     inv_yhat = np.concatenate((yhat, test_X[:, 1:]), axis=1)
     inv_yhat = scaler.inverse_transform(inv_yhat)
-    inv_yhat = inv_yhat[:, 0]
+    predictions = inv_yhat[:, 0]
+    actual_price = scaler.inverse_transform(test)
+
+    st.header("Price Predictions")
+    st.write(predictions)
 
     # Display predictions
-    st.header("Price Predictions")
-    st.write(inv_yhat)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(df.index[-len(predictions):], actual_price[:, 0], label='Actual')
+    ax.plot(df.index[-len(predictions):], predictions, label='Predicted', linestyle='--')
+    ax.set_title(f'{coin_choice} Price Prediction with LSTM')
+    ax.legend()
+    st.pyplot(fig)
 
-    # TODO: Rest of the streamlit interface
+    # Chatbot live interaction
+    st.header("Chat with Trading Bot")
+    user_message = st.text_input("You: ")
+    if user_message:
+        bot_reply = chatbot_response(user_message)
+        st.write(f"Bot: {bot_reply}")
 
 if __name__ == "__main__":
     main()
