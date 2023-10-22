@@ -45,7 +45,7 @@ def get_gpt3_response(user_input):
 # Streamlit app
 def main():
     st.title("Cryptocurrency Price Analysis Bot")
-    csv_path = 'https://github.com/Surya152002/Intel-Task-8/blob/main/crypto_dataset%20(9).csv'
+    csv_path = '/crypto_dataset (9).csv'
     
     if not os.path.exists(csv_path):
         st.error("The specified CSV file does not exist. Please provide a valid file path.")
