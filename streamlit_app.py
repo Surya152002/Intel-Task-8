@@ -12,7 +12,8 @@ import os  # Added for file path handling
 import openai
 import config
 
-config.api_key = os.environ.get("OPENAI_API_KEY")
+openai.api_key = os.environ.get("OPENAI_API_KEY")
+
 
 
 # Download the necessary NLTK datasets
