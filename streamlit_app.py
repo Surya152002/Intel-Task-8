@@ -11,7 +11,7 @@ from nltk.tokenize import word_tokenize
 import os  # Added for file path handling
 import openai
 
-openai.api_key = "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"
+openai.api_key = api_key
 
 # Download the necessary NLTK datasets
 nltk.download('punkt')
