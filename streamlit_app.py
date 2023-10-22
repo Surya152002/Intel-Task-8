@@ -1,131 +1,156 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler
-from keras.models import Sequential
-from keras.layers import Dense, LSTM
-import numpy as np
+# pip install pandas numpy matplotlib streamlit pystan fbprophet cryptocmd plotly
 import streamlit as st
-import os
-import openai
-import nltk
-from nltk.corpus import stopwords
+import pandas as pd
+import yfinance as yf
+import matplotlib.pyplot as plt
+import matplotlib
+import pandas_datareader as data
+import fbprophet
+import requests
+from fbprophet import Prophet
+from datetime import date
+from fbprophet.plot import plot_plotly
+from plotly import graph_objs as go
+from streamlit_option_menu import option_menu
+#from keras.models import load_model
+from PIL import Image
 
-# Global setup for OpenAI API key
-openai.api_key = os.environ["OPENAI_API_KEY"]
-# Download the necessary NLTK datasets
-nltk.download('punkt')
-nltk.download('stopwords')
-def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
-    n_vars = 1 if type(data) is list else data.shape[1]
-    df = pd.DataFrame(data)
-    cols, names = list(), list()
-    # input sequence (t-n, ... t-1)
-    for i in range(n_in, 0, -1):
-        cols.append(df.shift(i))
-        names += [('var%d(t-%d)' % (j + 1, i)) for j in range(n_vars)]
-    # forecast sequence (t, t+1, ... t+n)
-    for i in range(0, n_out):
-        cols.append(df.shift(-i))
-        if i == 0:
-            names += [('var%d(t)' % (j + 1)) for j in range(n_vars)]
-        else:
-            names += [('var%d(t+%d)' % (j + 1, i)) for j in range(n_vars)]
-    # put it all together
-    agg = pd.concat(cols, axis=1)
-    agg.columns = names
-    # drop rows with NaN values
-    if dropnan:
-        agg.dropna(inplace=True)
-    return agg
 
-def trading_advice(actual, prediction):
-    if prediction > actual:
-        return "Based on the predictions, you might consider buying."
-    elif prediction < actual:
-        return "Based on the predictions, you might consider selling."
-    else:
-        return "The price seems stable. You might consider holding."
+img=Image.open('logo.jpeg')
+st.set_page_config(page_title='predict crypto price',page_icon=img)
+hide_menu_style="""
+ <style>
+ #MainMenu {visibility:hidden;}
+ footer{visibility:hidden;}
+ </style>
+ """
+st.markdown(hide_menu_style,unsafe_allow_html=True)
 
-def chatbot_response(user_input):
-    predefined_responses = [
-        f"The predicted price for the next period is {predictions[-1]:.2f}.",
-        trading_advice(actual_price[-1], predictions[-1]),
-        "I am here to help with your cryptocurrency trading decisions.",
-        "Can you specify your query?"
-    ]
-    return predefined_responses[np.random.randint(0, len(predefined_responses))]
 
-# Streamlit app
-def main():
-    st.title("Cryptocurrency Price Prediction and Trading Bot")
+selected=option_menu(
+   menu_title=None,
+   options=["Home","Time Series Analysis","Indicator","Plan my purchase"],
+   icons=["house","clock-history","bar-chart-fill","currency-bitcoin"],
+   menu_icon="cast",
+   default_index=0,
+   orientation="horizontal",
+)
 
-    csv_path = 'https://github.com/Surya152002/Intel-Task-8/blob/main/crypto_dataset%20(9).csv'
+start='2011-01-01'
+end='2022-01-01'
+today=date.today().strftime("%Y-%m-%d")
 
-    # Read and preprocess the input data
-    df = pd.read_csv(csv_path, parse_dates=['Timestamp'], index_col='Timestamp')
-    coins = ['BTC-USD Close', 'ETH-USD Close', 'LTC-USD Close']
-    coin_choice = st.selectbox("Select a cryptocurrency", coins)
+if selected=="Home":
+ st.title("TILL DATE DATA")
+ cryptos=("BTC-USD", "ETH-USD", "USDT-USD", "BNB-USD", "USDC-USD", "SOL-USD", "ADA-USD", "XRP-USD", "LUNA1-USD", "HEX-USD", "AVAX-USD", "DOT-USD", "DOGE-USD", "SHIB-USD", "MATIC-USD", "ATOM-USD", "LTC-USD")
+ targetcrypto=st.selectbox("ENTER THE CRYPTO TO BE PREDICTED",cryptos)
+ def load_data(ticker):
+    data=yf.download(ticker,start,today)
+    data.reset_index(inplace=True)
+    return data
+ data_load_state=st.text("loading data...")
+ data=load_data(targetcrypto)
+ data_load_state.text("data loaded sucessfully....")
+ st.subheader("DATA FROM 2011 TO CURRENT DAY")
+ st.write(data.tail())
+ def org_graph():
+    fig=go.Figure()
+    fig.add_trace(go.Scatter(x=data['Date'],y=data['Open'],name='stock_open'))
+    fig.add_trace(go.Scatter(x=data['Date'],y=data['Close'],name='stock_close'))
+    fig.layout.update(title_text="TILL DATE DATA",xaxis_rangeslider_visible=True)
+    st.plotly_chart(fig)
+ org_graph()
+ st.header("Lets understand the data")
+ st.subheader("Open")
+ st.write("Open indicates the price of crypto currency at the begining of the day")
+ st.subheader("Close")
+ st.write("Close indicates the price of crypto currency at the end of the day")
+ st.subheader("Low")
+ st.write("Low indicates the least price of the crypto currency recorded in the whole day")
+ st.subheader("High")
+ st.write("High indicates the highest price of the crypto currency recorded in the whole day")
+ st.subheader("Volume")
+ st.write("Volume indicates the amount of crypto recorded at the end of the day")
 
-    # LSTM model preparation and prediction
-    if coin_choice == "BTC-USD Close":
-        coin_model_path = 'btc-usd_close_model.h5'
-    elif coin_choice == "ETH-USD Close":
-        coin_model_path = 'eth-usd_close_model.h5'
-    else:
-        coin_model_path = 'ltc-usd_close_model.h5'
 
-    values = df[coin_choice].values.reshape(-1, 1)
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled = scaler.fit_transform(values)
-    reframed = series_to_supervised(scaled, 1, 1)
+if selected=="Time Series Analysis":
+ cryptos=("BTC-USD", "ETH-USD", "USDT-USD", "BNB-USD", "USDC-USD", "SOL-USD", "ADA-USD", "XRP-USD", "LUNA1-USD", "HEX-USD", "AVAX-USD", "DOT-USD", "DOGE-USD", "SHIB-USD", "MATIC-USD", "ATOM-USD", "LTC-USD")
+ targetcrypto=st.selectbox("ENTER THE CRYPTO TO BE PREDICTED",cryptos)
+ def load_data(ticker):
+    data=yf.download(ticker,start,today)
+    data.reset_index(inplace=True)
+    return data
+ data_load_state=st.text("loading data...")
+ data=load_data(targetcrypto)
+ data_load_state.text("data loaded sucessfully....")
+ timeline=("WEEKS","MONTHS","YEARS")
+ duration=st.selectbox("ENTER THE DURATION TO PREDICT",timeline)
+ N=st.slider("ENTER NUMBER",0,10)
+ if(duration=="WEEKS"):
+    no_of_days=N*7
+ if(duration=="MONTHS"):
+    no_of_days=N*30
+ if(duration=="YEARS"):
+    no_of_days=N*365
+ df_train=data[['Date', 'Close']]
+ df_train=df_train.rename(columns={"Date":"ds","Close":"y"})
+ m= Prophet()
+ m.fit(df_train)
+ future=m.make_future_dataframe(periods=no_of_days)
+ forecast=m.predict(future)
+ st.subheader('PREDICTED DATA')
+ st.write(forecast.tail())
+ st.subheader('FORECAST DATA')
+ fig1=plot_plotly(m,forecast)
+ st.plotly_chart(fig1)
+ st.write("FORECAST COMPONENTS")
+ fig2=m.plot_components(forecast)
+ st.write(fig2)
+ st.subheader("We can observe Wednesday has been recorded as the highest price day of the week in crypto market")
+ st.subheader("Whereas Thursday has been recorded for the lowest price in the week")
+ st.subheader("While in year May has been recorded as all time high")
+ st.subheader("july has been recorded as the all time low in the year")
 
-    values = reframed.values
-    n_train = int(len(values) * 0.8)
-    train, test = values[:n_train, :], values[n_train:, :]
 
-    train_X, train_y = train[:, :-1], train[:, -1]
-    test_X, test_y = test[:, :-1], test[:, -1]
+if selected=="Indicator":
+ cryptos=("BTC-USD", "ETH-USD", "USDT-USD", "BNB-USD", "USDC-USD", "SOL-USD", "ADA-USD", "XRP-USD", "LUNA1-USD", "HEX-USD", "AVAX-USD", "DOT-USD", "DOGE-USD", "SHIB-USD", "MATIC-USD", "ATOM-USD", "LTC-USD")
+ targetcrypto=st.selectbox("ENTER THE CRYPTO TO BE PREDICTED",cryptos)
+ def load_data(ticker):
+    data=yf.download(ticker,start='2019-01-01')
+    return data
+ data_load_state=st.text("loading data...")
+ data=load_data(targetcrypto)
+ data_load_state.text("data loaded sucessfully....")
+ data['MA20'] = data['Adj Close'].rolling(20).mean()
+ data['MA50'] = data['Adj Close'].rolling(50).mean()
+ data['MA100'] = data['Adj Close'].rolling(100).mean()
+ data = data[['Adj Close','MA20','MA50','MA100']]
+ data = data.dropna()
+ st.write(data)
+ st.subheader("SMA")
+ st.write("Here we make use of one of the famous indicator known as SMA i.e Simple Moving Average here the past prices are considered and the average btw the values is calculated for the period of time and this process continues")
 
-    train_X = train_X.reshape((train_X.shape[0], 1, train_X.shape[1]))
-    test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
+ def sma_graph():
+    fig1=go.Figure()
+    fig1.add_trace(go.Scatter(x=data['MA20'].index,y=data['MA20'],name='MA20'))
+    fig1.add_trace(go.Scatter(x=data['MA50'].index,y=data['MA50'],name='MA50'))
+    fig1.add_trace(go.Scatter(x=data['MA100'].index,y=data['MA100'], name='MA100'))
+    fig1.add_trace(go.Scatter(x=data['Adj Close'].index,y=data['Adj Close'], name='Adj Close'))
+    fig1.layout.update(title_text="Moving average",xaxis_rangeslider_visible=True)
+    st.plotly_chart(fig1)
+ sma_graph()
+ st.subheader("CONCLUSION")
+ st.write("We observe that considering 20 days moving average shows relatively close result than 50 days moving average and 100 days moving average.hence if the period is less for calculating moving average the more accurate results will be drawn")
 
-    # LSTM model
-    model = Sequential()
-    model.add(LSTM(50, input_shape=(train_X.shape[1], train_X.shape[2])))
-    model.add(Dense(1))
-    model.compile(loss='mae', optimizer='adam')
-
-    if not os.path.exists(coin_model_path):
-        model.fit(train_X, train_y, epochs=50, batch_size=72, verbose=0, shuffle=False)
-        model.save(coin_model_path)
-    else:
-        model.load_weights(coin_model_path)
-
-    yhat = model.predict(test_X)
-    test_X = test_X.reshape((test_X.shape[0], test_X.shape[2]))
-
-    inv_yhat = np.concatenate((yhat, test_X[:, 1:]), axis=1)
-    inv_yhat = scaler.inverse_transform(inv_yhat)
-    predictions = inv_yhat[:, 0]
-    actual_price = scaler.inverse_transform(test)
-
-    st.header("Price Predictions")
-    st.write(predictions)
-
-    # Display predictions
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(df.index[-len(predictions):], actual_price[:, 0], label='Actual')
-    ax.plot(df.index[-len(predictions):], predictions, label='Predicted', linestyle='--')
-    ax.set_title(f'{coin_choice} Price Prediction with LSTM')
-    ax.legend()
-    st.pyplot(fig)
-
-    # Chatbot live interaction
-    st.header("Chat with Trading Bot")
-    user_message = st.text_input("You: ")
-    if user_message:
-        bot_reply = chatbot_response(user_message)
-        st.write(f"Bot: {bot_reply}")
-
-if __name__ == "__main__":
-    main()
+if selected=="Plan my purchase":
+ cryptos=("BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "ADAUSDT", "XRPUSDT", "LUNA1USDT", "HEXUSDT", "AVAXUSDT", "DOTUSDT", "DOGEUSDT", "SHIBUSDT", "MATICUSDT", "ATOMUSDT", "LTCUSDT")
+ targetcrypto=st.selectbox("ENTER THE CRYPTO TO BE PREDICTED",cryptos)
+ key = "https://api.binance.com/api/v3/ticker/price?symbol="
+ url = key+targetcrypto
+ data= requests.get(url)
+ data= data.json()
+ currprice= float(data['price'])
+ money=st.number_input("ENTER THE MONEY YOU WANT TO INVEST IN DOLLARS",min_value=10.00,step=1.00)
+ amount=money/currprice
+ st.write("YOU WILL HAVE ",amount," OF ",targetcrypto," IN YOUR WALLET")
+ 
