@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from statsmodels.tsa.arima.model import ARIMA
 from sklearn.preprocessing import StandardScaler
+from statsmodels.compat.pandas import Appender
 import streamlit as st
 import pickle
 import numpy as np
