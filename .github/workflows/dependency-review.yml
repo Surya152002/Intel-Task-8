@@ -13,18 +13,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.8
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Build and deploy
-        run: |
-          # Build your application or perform other deployment steps
-          # For example, you might use a script or specific commands here
+    - name: Use the secret
+      env:
+        MY_SECRET: ${{ secrets.MY_API_KEY }}
+      run: echo $MY_SECRET
