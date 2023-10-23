@@ -12,7 +12,7 @@ import os  # Added for file path handling
 import openai
 
 
-openai.api_key = '${{ secrets.OPENAI_API_KEY }}'
+openai.api_key = os.environ.get('OPENAI_API_KEY') 
 
 
 
