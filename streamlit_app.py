@@ -45,7 +45,7 @@ start_date = st.date_input('Start date', pd.to_datetime('2021-01-01'))
 end_date = st.date_input('End date', pd.to_datetime('today'))
 look_back = st.number_input('Look Back Period',value=60)
 prediction_days = st.slider('Days to Predict', 1, 30, 5)
-path="./best_model.h5"
+path="https://github.com/Surya152002/Intel-Task-8/blob/surya/best_model.h5"
 # Load pre-trained LSTM model and scaler
 with st.spinner('Loading model and scaler...'):
     model = load_model('path')  # make sure to use the correct path to your model
