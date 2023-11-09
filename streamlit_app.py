@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 # Load your trained LSTM model
-# model = load_model('best_model.h5')  # Uncomment this line to load your trained model
+model = load_model('./best_model.h5')  # Uncomment this line to load your trained model
 
 # Define the LSTM prediction function
 def lstm_predict(model, data, scaler, look_back=60):
