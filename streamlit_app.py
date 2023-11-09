@@ -48,7 +48,7 @@ prediction_days = st.slider('Days to Predict', 1, 30, 5)
 
 # Load pre-trained LSTM model and scaler
 with st.spinner('Loading model and scaler...'):
-    model = load_model('best_model.h5')  # make sure to use the correct path to your model
+    model = load_model('./best_model.h5')  # make sure to use the correct path to your model
     scaler = MinMaxScaler(feature_range=(0, 1))  # Assuming the scaler was fitted to the training data
 
 # Fetch historical data from yfinance
